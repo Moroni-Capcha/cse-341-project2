@@ -3,11 +3,9 @@ const ObjectId = require('mongodb').ObjectId;
 
 const getAll = async (req, res, next) => {
   try {
-    const result = await mongodb.getDb().db().collection('categories').find();
-    result.toArray().then((lists) => {
-      res.setHeader('Content-Type', 'application/json');
-      res.status(200).json(lists);
-    });
+    const lists = await mongodb.getDb().db().collection('categories').find().toArray();
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json(lists);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -16,17 +14,15 @@ const getAll = async (req, res, next) => {
 const getSingle = async (req, res, next) => {
   try {
     if (!ObjectId.isValid(req.params.id)) {
-      res.status(400).json('Must use a valid category id to find a category.');
+      return res.status(400).json('Must use a valid category id to find a category.');
     }
     const categoryId = new ObjectId(req.params.id);
-    const result = await mongodb.getDb().db().collection('categories').find({ _id: categoryId });
-    result.toArray().then((lists) => {
-      if (lists.length === 0) {
-        return res.status(404).json({ message: 'Category not found' });
-      }
-      res.setHeader('Content-Type', 'application/json');
-      res.status(200).json(lists[0]);
-    });
+    const lists = await mongodb.getDb().db().collection('categories').find({ _id: categoryId }).toArray();
+    if (lists.length === 0) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json(lists[0]);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -53,7 +49,7 @@ const createCategory = async (req, res) => {
 const updateCategory = async (req, res) => {
   try {
     if (!ObjectId.isValid(req.params.id)) {
-      res.status(400).json('Must use a valid category id to update a category.');
+      return res.status(400).json('Must use a valid category id to update a category.');
     }
     const categoryId = new ObjectId(req.params.id);
     const category = {
@@ -66,7 +62,10 @@ const updateCategory = async (req, res) => {
       .db()
       .collection('categories')
       .replaceOne({ _id: categoryId }, category);
-    if (response.modifiedCount > 0) {
+    if (response.matchedCount === 0) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+    if (response.modifiedCount > 0 || response.matchedCount > 0) {
       res.status(204).send();
     } else {
       res.status(500).json(response.error || 'Some error occurred while updating the category.');
@@ -79,14 +78,14 @@ const updateCategory = async (req, res) => {
 const deleteCategory = async (req, res) => {
   try {
     if (!ObjectId.isValid(req.params.id)) {
-      res.status(400).json('Must use a valid category id to delete a category.');
+      return res.status(400).json('Must use a valid category id to delete a category.');
     }
     const categoryId = new ObjectId(req.params.id);
     const response = await mongodb.getDb().db().collection('categories').deleteOne({ _id: categoryId });
     if (response.deletedCount > 0) {
       res.status(204).send();
     } else {
-      res.status(500).json(response.error || 'Some error occurred while deleting the category.');
+      res.status(404).json({ message: 'Category not found' });
     }
   } catch (err) {
     res.status(500).json(err);

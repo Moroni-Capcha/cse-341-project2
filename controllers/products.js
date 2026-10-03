@@ -3,11 +3,9 @@ const ObjectId = require('mongodb').ObjectId;
 
 const getAll = async (req, res, next) => {
   try {
-    const result = await mongodb.getDb().db().collection('products').find();
-    result.toArray().then((lists) => {
-      res.setHeader('Content-Type', 'application/json');
-      res.status(200).json(lists);
-    });
+    const lists = await mongodb.getDb().db().collection('products').find().toArray();
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json(lists);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -16,17 +14,15 @@ const getAll = async (req, res, next) => {
 const getSingle = async (req, res, next) => {
   try {
     if (!ObjectId.isValid(req.params.id)) {
-      res.status(400).json('Must use a valid product id to find a product.');
+      return res.status(400).json('Must use a valid product id to find a product.');
     }
     const productId = new ObjectId(req.params.id);
-    const result = await mongodb.getDb().db().collection('products').find({ _id: productId });
-    result.toArray().then((lists) => {
-      if (lists.length === 0) {
-        return res.status(404).json({ message: 'Product not found' });
-      }
-      res.setHeader('Content-Type', 'application/json');
-      res.status(200).json(lists[0]);
-    });
+    const lists = await mongodb.getDb().db().collection('products').find({ _id: productId }).toArray();
+    if (lists.length === 0) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json(lists[0]);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -57,7 +53,7 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     if (!ObjectId.isValid(req.params.id)) {
-      res.status(400).json('Must use a valid product id to update a product.');
+      return res.status(400).json('Must use a valid product id to update a product.');
     }
     const productId = new ObjectId(req.params.id);
     const product = {
@@ -74,7 +70,10 @@ const updateProduct = async (req, res) => {
       .db()
       .collection('products')
       .replaceOne({ _id: productId }, product);
-    if (response.modifiedCount > 0) {
+    if (response.matchedCount === 0) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    if (response.modifiedCount > 0 || response.matchedCount > 0) {
       res.status(204).send();
     } else {
       res.status(500).json(response.error || 'Some error occurred while updating the product.');
@@ -87,14 +86,14 @@ const updateProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
   try {
     if (!ObjectId.isValid(req.params.id)) {
-      res.status(400).json('Must use a valid product id to delete a product.');
+      return res.status(400).json('Must use a valid product id to delete a product.');
     }
     const productId = new ObjectId(req.params.id);
     const response = await mongodb.getDb().db().collection('products').deleteOne({ _id: productId });
     if (response.deletedCount > 0) {
       res.status(204).send();
     } else {
-      res.status(500).json(response.error || 'Some error occurred while deleting the product.');
+      res.status(404).json({ message: 'Product not found' });
     }
   } catch (err) {
     res.status(500).json(err);
