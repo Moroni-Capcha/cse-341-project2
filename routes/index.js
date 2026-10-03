@@ -46,7 +46,12 @@ router.get(
   }),
   (req, res) => {
     req.session.user = req.user;
-    res.redirect('/');
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+      }
+      res.redirect('/');
+    });
   }
 );
 
@@ -57,11 +62,17 @@ router.get(
      #swagger.description = 'Displays whether the user is logged in or logged out.'
   */
   (req, res) => {
-    res.send(
-      req.session.user !== undefined
-        ? `Logged in as ${req.session.user.displayName || req.session.user.username}`
-        : 'Logged Out'
-    );
+    if (req.session.user !== undefined) {
+      res.send(`
+        <h2>Logged in as ${req.session.user.displayName || req.session.user.username}</h2>
+        <p><a href="/logout">Logout</a> &nbsp;|&nbsp; <a href="/api-docs">API Documentation</a></p>
+      `);
+    } else {
+      res.send(`
+        <h2>Logged Out</h2>
+        <p><a href="/login">Login with GitHub</a> &nbsp;|&nbsp; <a href="/api-docs">API Documentation</a></p>
+      `);
+    }
   }
 );
 
